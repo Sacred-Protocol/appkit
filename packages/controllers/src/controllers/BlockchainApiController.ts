@@ -197,20 +197,13 @@ export const BlockchainApiController = {
       return identityCache
     }
 
-    const activeChain = ChainController.state.activeChain
-    const sender = ChainController.state.activeCaipAddress
-      ? CoreHelperUtil.getPlainAddress(ChainController.state.activeCaipAddress)
-      : undefined
-    
-    // Only include sender for EVM chains (API doesn't support non-EVM addresses)
-    const params: { sender?: string } = {}
-    if (activeChain === 'eip155' && sender) {
-      params.sender = sender
-    }
-    
     const result = await BlockchainApiController.get<BlockchainApiIdentityResponse>({
       path: `/v1/identity/${address}`,
-      params
+      params: {
+        sender: ChainController.state.activeCaipAddress
+          ? CoreHelperUtil.getPlainAddress(ChainController.state.activeCaipAddress)
+          : undefined
+      }
     })
 
     StorageUtil.updateIdentityCache({
@@ -503,20 +496,13 @@ export const BlockchainApiController = {
     }
 
     const sender = ChainController.getAccountData()?.address
-    const activeChain = ChainController.state.activeChain
-    
-    // Only include sender if it's an EVM address (ENS API doesn't support non-EVM addresses)
-    const params: { sender?: string; apiVersion: string } = {
-      apiVersion: '2'
-    }
-    
-    if (activeChain === 'eip155' && sender) {
-      params.sender = sender
-    }
 
     return BlockchainApiController.get<BlockchainApiLookupEnsName[]>({
       path: `/v1/profile/reverse/${address}`,
-      params
+      params: {
+        sender,
+        apiVersion: '2'
+      }
     })
   },
 
