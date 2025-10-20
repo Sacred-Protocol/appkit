@@ -1,6 +1,6 @@
 {
   "name": "@laughingwhales/appkit",
-  "version": "1.8.11",
+  "version": "1.8.14",
   "type": "module",
   "main": "./dist/esm/exports/index.js",
   "types": "./dist/types/exports/index.d.ts",
@@ -117,14 +117,14 @@
     "semver": "7.7.2",
     "valtio": "2.1.7",
     "viem": ">=2.37.9",
-    "@laughingwhales/appkit-common": "workspace:*",
-    "@laughingwhales/appkit-controllers": "workspace:*",
-    "@laughingwhales/appkit-pay": "workspace:*",
-    "@laughingwhales/appkit-polyfills": "workspace:*",
-    "@laughingwhales/appkit-scaffold-ui": "workspace:*",
-    "@laughingwhales/appkit-ui": "workspace:*",
-    "@laughingwhales/appkit-utils": "workspace:*",
-    "@laughingwhales/appkit-wallet": "workspace:*"
+    "@laughingwhales/appkit-common": "^1.8.12",
+    "@laughingwhales/appkit-controllers": "^1.8.12",
+    "@laughingwhales/appkit-pay": "^1.8.12",
+    "@laughingwhales/appkit-polyfills": "^1.8.12",
+    "@laughingwhales/appkit-scaffold-ui": "^1.8.12",
+    "@laughingwhales/appkit-ui": "^1.8.12",
+    "@laughingwhales/appkit-utils": "^1.8.12",
+    "@laughingwhales/appkit-wallet": "^1.8.12"
   },
   "devDependencies": {
     "@walletconnect/types": "2.22.4",
