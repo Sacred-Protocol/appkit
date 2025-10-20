@@ -393,7 +393,13 @@ export const CoreHelperUtil = {
         return false
       case 'solana':
         return /[1-9A-HJ-NP-Za-km-z]{32,44}$/iu.test(address)
-
+      case 'polkadot':
+        // Polkadot SS58 addresses: 47-48 characters, alphanumeric
+        // Common Polkadot mainnet addresses start with 1, AssetHub with 1-2, Kusama with capital letters
+        return /^[1-9A-HJ-NP-Za-km-z]{47,48}$/u.test(address)
+      case 'bip122':
+        // Bitcoin addresses: P2PKH (1...), P2SH (3...), Bech32 (bc1...)
+        return /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/u.test(address)
       default:
         return false
     }
