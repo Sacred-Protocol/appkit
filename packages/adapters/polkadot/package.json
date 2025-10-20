@@ -1,6 +1,6 @@
 {
   "name": "@laughingwhales/appkit-adapter-polkadot",
-  "version": "1.8.14",
+  "version": "1.8.15",
   "private": false,
   "sideEffects": false,
   "type": "module",
