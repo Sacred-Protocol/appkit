@@ -14,11 +14,19 @@ export const assetHub = defineChain({
   rpcUrls: {
     default: {
       http: ['https://statemint-rpc.polkadot.io'],
-      webSocket: ['wss://statemint-rpc.polkadot.io']
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
     },
     public: {
       http: ['https://statemint-rpc.polkadot.io'],
-      webSocket: ['wss://statemint-rpc.polkadot.io']
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
     }
   },
   blockExplorers: {

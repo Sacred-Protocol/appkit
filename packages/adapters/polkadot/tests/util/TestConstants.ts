@@ -3,14 +3,20 @@
  * Centralizes commonly used values across test files
  */
 import {
-  MOCK_ACCOUNTS,
+  ACCOUNT_POLKADOTJS_1,
   ACCOUNT_SUBWALLET_1,
   ACCOUNT_SUBWALLET_2,
   ACCOUNT_TALISMAN_1,
-  ACCOUNT_POLKADOTJS_1,
+  MOCK_ACCOUNTS,
   getAccountsBySource
 } from '../mocks/mockAccounts.js'
-import { POLKADOT_MAINNET, KUSAMA_NETWORK, WESTEND_TESTNET, MOCK_NETWORKS } from '../mocks/mockNetworks.js'
+import {
+  ASSETHUB_NETWORK,
+  KUSAMA_NETWORK,
+  MOCK_NETWORKS,
+  POLKADOT_MAINNET,
+  WESTEND_TESTNET
+} from '../mocks/mockNetworks.js'
 
 // Export accounts
 export {
@@ -23,7 +29,7 @@ export {
 }
 
 // Export networks
-export { POLKADOT_MAINNET, KUSAMA_NETWORK, WESTEND_TESTNET, MOCK_NETWORKS }
+export { POLKADOT_MAINNET, KUSAMA_NETWORK, ASSETHUB_NETWORK, WESTEND_TESTNET, MOCK_NETWORKS }
 
 // Supported wallet IDs
 export const SUPPORTED_WALLETS = ['polkadot-js', 'talisman', 'subwallet-js']
@@ -31,17 +37,17 @@ export const SUPPORTED_WALLETS = ['polkadot-js', 'talisman', 'subwallet-js']
 // Wallet source to ID mapping
 export const WALLET_SOURCE_TO_ID: Record<string, string> = {
   'subwallet-js': 'subwallet',
-  'talisman': 'talisman',
+  talisman: 'talisman',
   'polkadot-js': 'polkadot'
 }
 
 // Wallet ID to name mapping
 export const WALLET_NAMES: Record<string, string> = {
   'polkadot-js': 'Polkadot{.js}',
-  'polkadot': 'Polkadot{.js}',
-  'talisman': 'Talisman',
+  polkadot: 'Polkadot{.js}',
+  talisman: 'Talisman',
   'subwallet-js': 'SubWallet',
-  'subwallet': 'SubWallet'
+  subwallet: 'SubWallet'
 }
 
 // Test message for signing
@@ -54,6 +60,7 @@ export const DEFAULT_APP_NAME = 'AppKit Polkadot'
 // Chain IDs
 export const POLKADOT_CHAIN_ID = '91b171bb158e2d3848fa23a9f1c25182'
 export const KUSAMA_CHAIN_ID = 'b0a8d493285c2df73290dfb7e61f870f'
+export const ASSETHUB_CHAIN_ID = '68d56f15f85d3136970ec16946040bc1'
 export const WESTEND_CHAIN_ID = 'e143f23803ac50e8f6f8e62695d1ce9e'
 
 // Balance test values (in planck/smallest unit)
@@ -63,4 +70,3 @@ export const TEST_BALANCE_FORMATTED = '500.0000' // Expected formatted output
 // Kusama balance
 export const TEST_BALANCE_KSM_PLANCK = '3000000000000' // 3 KSM (12 decimals)
 export const TEST_BALANCE_KSM_FORMATTED = '3.0000'
-

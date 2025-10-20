@@ -68,6 +68,47 @@ export const KUSAMA_NETWORK: CaipNetwork = {
 }
 
 /**
+ * Polkadot Asset Hub (mainnet, formerly Statemint)
+ * Genesis hash: 0x68d56f15f85d3136970ec16946040bc1752654e906147f7e43e9d539d7c3de2f
+ * Multiple WebSocket endpoints for fallback testing
+ */
+export const ASSETHUB_NETWORK: CaipNetwork = {
+  id: '68d56f15f85d3136970ec16946040bc1',
+  name: 'Polkadot Asset Hub',
+  chainNamespace: 'polkadot',
+  caipNetworkId: 'polkadot:68d56f15f85d3136970ec16946040bc1',
+  nativeCurrency: {
+    name: 'Polkadot',
+    symbol: 'DOT',
+    decimals: 10
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://statemint-rpc.polkadot.io'],
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
+    },
+    public: {
+      http: ['https://statemint-rpc.polkadot.io'],
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
+    }
+  },
+  blockExplorers: {
+    default: {
+      name: 'Subscan',
+      url: 'https://assethub-polkadot.subscan.io'
+    }
+  }
+}
+
+/**
  * Westend Testnet
  * Genesis hash: 0xe143f23803ac50e8f6f8e62695d1ce9e4e1d68aa36c1cd2cfd15340213f3423e
  */
@@ -99,5 +140,4 @@ export const WESTEND_TESTNET: CaipNetwork = {
   }
 }
 
-export const MOCK_NETWORKS = [POLKADOT_MAINNET, KUSAMA_NETWORK, WESTEND_TESTNET]
-
+export const MOCK_NETWORKS = [POLKADOT_MAINNET, KUSAMA_NETWORK, ASSETHUB_NETWORK, WESTEND_TESTNET]

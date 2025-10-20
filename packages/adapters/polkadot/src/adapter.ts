@@ -9,6 +9,7 @@
 // Note: UniversalProvider not used - Polkadot only uses injected connectors, not WalletConnect
 // import type UniversalProvider from '@walletconnect/universal-provider'
 import type { CaipNetwork, ChainNamespace, Connection } from '@laughingwhales/appkit-common'
+
 import { AdapterBlueprint } from '@reown/appkit-controllers'
 import { ConstantsUtil, PresetsUtil } from '@reown/appkit-utils'
 
@@ -1048,22 +1049,37 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   }
 
   /**
-   * Resolve WebSocket URL for Substrate chains
-   * Prefers webSocket endpoints, falls back to wss:// http URLs
+   * Resolve WebSocket URLs for Substrate chains
+   * Returns all available WebSocket endpoints for fallback support
    */
-  private resolveWsUrl(network: CaipNetwork): string | undefined {
+  private resolveWsUrls(network: CaipNetwork): string[] {
     const defaultRpc = network.rpcUrls?.default as any
     const publicRpc = (network.rpcUrls as any)?.public
+    const urls: string[] = []
 
-    // Prefer default.webSocket
-    const wsUrl = defaultRpc?.webSocket?.[0] || publicRpc?.webSocket?.[0]
-    if (wsUrl) return wsUrl
+    // Collect all webSocket URLs from default
+    if (defaultRpc?.webSocket && Array.isArray(defaultRpc.webSocket)) {
+      urls.push(...defaultRpc.webSocket)
+    }
 
-    // Fallback: check if http URL is actually wss://
-    const httpUrl = defaultRpc?.http?.[0] || publicRpc?.http?.[0]
-    if (httpUrl?.startsWith('wss://')) return httpUrl
+    // Collect all webSocket URLs from public (avoid duplicates)
+    if (publicRpc?.webSocket && Array.isArray(publicRpc.webSocket)) {
+      publicRpc.webSocket.forEach((url: string) => {
+        if (!urls.includes(url)) {
+          urls.push(url)
+        }
+      })
+    }
 
-    return undefined
+    // Fallback: check if http URLs are actually wss://
+    const httpUrls = [...(defaultRpc?.http || []), ...(publicRpc?.http || [])]
+    httpUrls.forEach((url: string) => {
+      if (url?.startsWith('wss://') && !urls.includes(url)) {
+        urls.push(url)
+      }
+    })
+
+    return urls
   }
 
   private async getApi(caipNetwork: CaipNetwork): Promise<any> {
@@ -1072,28 +1088,54 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
     const cached = this.apiCache.get(String(caipNetwork.id))
     if (cached) {
       console.log('[PolkadotAdapter] Using cached API for:', caipNetwork.id)
-      return cached
+      // Check if cached API is still connected
+      try {
+        if (cached.isConnected) {
+          return cached
+        }
+        console.log('[PolkadotAdapter] Cached API is disconnected, removing from cache')
+        this.apiCache.delete(String(caipNetwork.id))
+      } catch {
+        // If checking connection fails, remove from cache and reconnect
+        this.apiCache.delete(String(caipNetwork.id))
+      }
     }
 
-    const wsUrl = this.resolveWsUrl(caipNetwork)
-    console.log('[PolkadotAdapter] Resolved WebSocket URL:', wsUrl)
+    const wsUrls = this.resolveWsUrls(caipNetwork)
+    console.log('[PolkadotAdapter] Resolved WebSocket URLs:', wsUrls)
 
-    if (!wsUrl) {
+    if (wsUrls.length === 0) {
       console.error('[PolkadotAdapter] No WebSocket RPC URL configured for network:', caipNetwork)
       throw new Error('No WebSocket RPC URL configured for Substrate network')
     }
 
-    try {
-      console.log('[PolkadotAdapter] Creating API connection to:', wsUrl)
-      const provider = new this.libs!.WsProvider(wsUrl)
-      const api = await this.libs!.ApiPromise.create({ provider })
+    // Try each endpoint until one succeeds
+    let lastError: Error | undefined
+    for (const wsUrl of wsUrls) {
+      try {
+        console.log('[PolkadotAdapter] Attempting API connection to:', wsUrl)
+        const provider = new this.libs!.WsProvider(wsUrl, false) // autoConnect = false for better error handling
+        const api = await this.libs!.ApiPromise.create({ provider })
 
-      console.log('[PolkadotAdapter] API created successfully for:', caipNetwork.id)
-      this.apiCache.set(String(caipNetwork.id), api)
-      return api
-    } catch (error) {
-      console.error('[PolkadotAdapter] Failed to create API connection:', error)
-      throw error
+        // Verify connection is established
+        await api.isReady
+        console.log(
+          '[PolkadotAdapter] API created successfully for:',
+          caipNetwork.id,
+          'using',
+          wsUrl
+        )
+        this.apiCache.set(String(caipNetwork.id), api)
+        return api
+      } catch (error) {
+        console.warn('[PolkadotAdapter] Failed to connect to:', wsUrl, error)
+        lastError = error as Error
+        // Continue to next endpoint
+      }
     }
+
+    // If all endpoints failed, throw the last error
+    console.error('[PolkadotAdapter] All RPC endpoints failed for network:', caipNetwork.name)
+    throw lastError || new Error('Failed to connect to any RPC endpoint')
   }
 }

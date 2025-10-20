@@ -1,12 +1,11 @@
 /**
  * Example Polkadot network definitions
- * 
+ *
  * These demonstrate how to define Polkadot/Substrate networks for AppKit.
  * Use the genesis hash (first 32 hex chars, no 0x) as the CAIP-2 chain reference.
- * 
+ *
  * @see https://namespaces.chainagnostic.org/polkadot/caip2
  */
-
 import type { CaipNetwork } from '@laughingwhales/appkit-common'
 
 /**
@@ -58,11 +57,19 @@ export const assetHub: CaipNetwork = {
   rpcUrls: {
     default: {
       http: ['https://statemint-rpc.polkadot.io'],
-      webSocket: ['wss://statemint-rpc.polkadot.io']
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
     },
     public: {
       http: ['https://statemint-rpc.polkadot.io'],
-      webSocket: ['wss://statemint-rpc.polkadot.io']
+      webSocket: [
+        'wss://sys.ibp.network/statemint',
+        'wss://statemint-rpc.polkadot.io',
+        'wss://polkadot-asset-hub-rpc.polkadot.io'
+      ]
     }
   },
   blockExplorers: {
@@ -146,4 +153,3 @@ export const polkadotNetworks = [polkadotRelay, assetHub, kusamaRelay, westendTe
  * Default network (Polkadot Relay Chain)
  */
 export const defaultPolkadotNetwork = polkadotRelay
-
