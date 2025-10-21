@@ -1,10 +1,14 @@
+import { type ChainNamespace, ConstantsUtil } from '@laughingwhales/appkit-common'
+import {
+  ChainController,
+  ConnectorController,
+  RouterController
+} from '@laughingwhales/appkit-controllers'
+import { type VisualType, customElement } from '@laughingwhales/appkit-ui'
+
 import { LitElement, html } from 'lit'
 import { property } from 'lit/decorators.js'
 import { ifDefined } from 'lit/directives/if-defined.js'
-
-import { type ChainNamespace, ConstantsUtil } from '@laughingwhales/appkit-common'
-import { ChainController, ConnectorController, RouterController } from '@laughingwhales/appkit-controllers'
-import { type VisualType, customElement } from '@laughingwhales/appkit-ui'
 
 import styles from './styles.js'
 
@@ -12,8 +16,10 @@ const chainIconNameMap: Record<ChainNamespace, VisualType> = {
   eip155: 'eth',
   solana: 'solana',
   bip122: 'bitcoin',
-  // @ts-expect-error we don't have Polkadot implemented yet
-  polkadot: undefined
+  polkadot: 'polkadot',
+  cosmos: 'network', // generic visual until a dedicated Cosmos icon exists
+  sui: 'network', // generic visual until a dedicated Sui icon exists
+  stacks: 'network' // generic visual until a dedicated Stacks icon exists
 }
 
 @customElement('w3m-switch-active-chain-view')

@@ -19,6 +19,7 @@ import { nftSvg } from '../../assets/visual/nft.js'
 import { nounSvg } from '../../assets/visual/noun.js'
 import { onrampCardSvg } from '../../assets/visual/onramp-card.js'
 import { pencilSvg } from '../../assets/visual/pencil.js'
+import { polkadotSvg } from '../../assets/visual/polkadot.js'
 import { profileSvg } from '../../assets/visual/profile.js'
 import { solanaSvg } from '../../assets/visual/solana.js'
 import { systemSvg } from '../../assets/visual/system.js'
@@ -48,7 +49,8 @@ const svgOptions: Record<VisualType, TemplateResult<2>> = {
   pencil: pencilSvg,
   lightbulb: lightbulbSvg,
   solana: solanaSvg,
-  bitcoin: bitcoinSvg
+  bitcoin: bitcoinSvg,
+  polkadot: polkadotSvg
 }
 
 @customElement('wui-visual')

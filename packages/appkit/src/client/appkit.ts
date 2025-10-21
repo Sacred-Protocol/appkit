@@ -34,7 +34,11 @@ import {
   ThemeController
 } from '@laughingwhales/appkit-controllers'
 import type { AdapterBlueprint } from '@laughingwhales/appkit-controllers'
-import { ErrorUtil, HelpersUtil, ConstantsUtil as UtilConstantsUtil } from '@laughingwhales/appkit-utils'
+import {
+  ErrorUtil,
+  HelpersUtil,
+  ConstantsUtil as UtilConstantsUtil
+} from '@laughingwhales/appkit-utils'
 import { W3mFrameHelpers, W3mFrameProvider } from '@laughingwhales/appkit-wallet'
 import type { W3mFrameTypes } from '@laughingwhales/appkit-wallet'
 import { W3mFrameRpcConstants } from '@laughingwhales/appkit-wallet/utils'
@@ -544,6 +548,16 @@ export class AppKit extends AppKitBaseClient {
 
     const isAuthConnector =
       ConnectorController.getConnectorId(chainNamespace) === ConstantsUtil.CONNECTOR_ID.AUTH
+
+    // Only fetch identity for EVM chains. The WalletConnect identity API is EVM-specific;
+    // for non-EVM namespaces (solana, bip122, polkadot), skip external lookup to avoid
+    // unnecessary 400s and set empty profile data. Adapters can implement their own
+    // chain-specific identity in the future.
+    if (chainNamespace !== ConstantsUtil.CHAIN.EVM) {
+      this.setProfileName(null, chainNamespace)
+      this.setProfileImage(null, chainNamespace)
+      return
+    }
 
     try {
       const { name, avatar } = await this.fetchIdentity({

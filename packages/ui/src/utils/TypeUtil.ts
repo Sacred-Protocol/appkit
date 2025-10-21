@@ -196,6 +196,7 @@ export type IconType =
   | 'ethereum'
   | 'solana'
   | 'bitcoin'
+  | 'polkadot'
 
 export type IconWeightType = 'regular' | 'bold' | 'fill'
 
@@ -220,6 +221,7 @@ export type VisualType =
   | 'pencil'
   | 'solana'
   | 'bitcoin'
+  | 'polkadot'
 
 export type VisualSize = 'sm' | 'md' | 'lg'
 

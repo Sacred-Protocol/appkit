@@ -1,6 +1,6 @@
 {
   "name": "@laughingwhales/appkit-adapter-polkadot",
-  "version": "1.8.15",
+  "version": "1.8.21",
   "private": false,
   "sideEffects": false,
   "type": "module",
@@ -28,11 +28,11 @@
   },
   "dependencies": {
     "@walletconnect/universal-provider": "2.22.4",
-    "@laughingwhales/appkit": "^1.8.12",
-    "@laughingwhales/appkit-common": "^1.8.12",
-    "@laughingwhales/appkit-controllers": "^1.8.12",
-    "@laughingwhales/appkit-polyfills": "^1.8.12",
-    "@laughingwhales/appkit-utils": "^1.8.12"
+    "@laughingwhales/appkit": "workspace:*",
+    "@laughingwhales/appkit-common": "workspace:*",
+    "@laughingwhales/appkit-controllers": "workspace:*",
+    "@laughingwhales/appkit-polyfills": "workspace:*",
+    "@laughingwhales/appkit-utils": "workspace:*"
   },
   "peerDependencies": {
     "@polkadot/api": "^16.0.0",
@@ -57,7 +57,7 @@
     "directory": "packages/adapters/polkadot"
   },
   "publishConfig": {
-    "provenance": true
+    "provenance": false
   },
   "bugs": {
     "url": "https://github.com/reown-com/appkit/issues"

@@ -1,7 +1,3 @@
-import { LitElement, html } from 'lit'
-import { state } from 'lit/decorators.js'
-import { classMap } from 'lit/directives/class-map.js'
-
 import {
   type CaipAddress,
   type ChainNamespace,
@@ -33,6 +29,10 @@ import '@laughingwhales/appkit-ui/wui-separator'
 import '@laughingwhales/appkit-ui/wui-tabs'
 import '@laughingwhales/appkit-ui/wui-text'
 import { HelpersUtil } from '@laughingwhales/appkit-utils'
+
+import { LitElement, html } from 'lit'
+import { state } from 'lit/decorators.js'
+import { classMap } from 'lit/directives/class-map.js'
 
 import { ConnectionUtil } from '../../utils/ConnectionUtil.js'
 import styles from './styles.js'
@@ -68,19 +68,22 @@ const UI_CONFIG = {
 const NAMESPACE_ICONS = {
   eip155: 'ethereum',
   solana: 'solana',
-  bip122: 'bitcoin'
+  bip122: 'bitcoin',
+  polkadot: 'polkadot'
 } as const
 
 const NAMESPACE_TABS = [
   { namespace: 'eip155', icon: NAMESPACE_ICONS.eip155, label: 'EVM' },
   { namespace: 'solana', icon: NAMESPACE_ICONS.solana, label: 'Solana' },
-  { namespace: 'bip122', icon: NAMESPACE_ICONS.bip122, label: 'Bitcoin' }
+  { namespace: 'bip122', icon: NAMESPACE_ICONS.bip122, label: 'Bitcoin' },
+  { namespace: 'polkadot', icon: NAMESPACE_ICONS.polkadot, label: 'Polkadot' }
 ] as const satisfies { namespace: ChainNamespace; icon: string; label: string }[]
 
 const CHAIN_LABELS = {
   eip155: { title: 'Add EVM Wallet', description: 'Add your first EVM wallet' },
   solana: { title: 'Add Solana Wallet', description: 'Add your first Solana wallet' },
-  bip122: { title: 'Add Bitcoin Wallet', description: 'Add your first Bitcoin wallet' }
+  bip122: { title: 'Add Bitcoin Wallet', description: 'Add your first Bitcoin wallet' },
+  polkadot: { title: 'Add Polkadot Wallet', description: 'Add your first Polkadot wallet' }
 } as const
 
 @customElement('w3m-profile-wallets-view')
@@ -109,7 +112,16 @@ export class W3mProfileWalletsView extends LitElement {
   constructor() {
     super()
 
-    this.currentTab = this.namespace ? this.namespaces.indexOf(this.namespace) : 0
+    // Calculate currentTab based on NAMESPACE_TABS order, not this.namespaces order
+    const availableTabs = NAMESPACE_TABS.filter(tab => this.namespaces.includes(tab.namespace))
+    this.currentTab = this.namespace
+      ? availableTabs.findIndex(tab => tab.namespace === this.namespace)
+      : 0
+    // Ensure valid tab index
+    if (this.currentTab === -1) {
+      this.currentTab = 0
+    }
+
     this.caipAddress = ChainController.getAccountData(this.namespace)?.caipAddress
     this.profileName = ChainController.getAccountData(this.namespace)?.profileName
 
@@ -483,11 +495,13 @@ export class W3mProfileWalletsView extends LitElement {
   }
 
   private handleTabChange(index: number) {
-    const nextNamespace = this.namespaces[index]
+    // Look up namespace from the filtered tabs (which follow NAMESPACE_TABS order)
+    const availableTabs = NAMESPACE_TABS.filter(tab => this.namespaces.includes(tab.namespace))
+    const nextNamespace = availableTabs[index]?.namespace
 
     if (nextNamespace) {
       this.chainListener?.()
-      this.currentTab = this.namespaces.indexOf(nextNamespace)
+      this.currentTab = index
       this.namespace = nextNamespace
 
       this.caipAddress = ChainController.getAccountData(nextNamespace)?.caipAddress

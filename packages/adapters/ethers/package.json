@@ -1,6 +1,6 @@
 {
   "name": "@laughingwhales/appkit-adapter-ethers",
-  "version": "1.8.13",
+  "version": "1.8.12",
   "sideEffects": false,
   "type": "module",
   "main": "./dist/esm/src/index.js",

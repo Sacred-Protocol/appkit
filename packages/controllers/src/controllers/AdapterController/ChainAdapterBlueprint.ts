@@ -1,5 +1,3 @@
-import UniversalProvider from '@walletconnect/universal-provider'
-
 import {
   type Address,
   type CaipAddress,
@@ -12,6 +10,7 @@ import {
   UserRejectedRequestError
 } from '@laughingwhales/appkit-common'
 import type { W3mFrameProvider, W3mFrameTypes } from '@laughingwhales/appkit-wallet'
+import UniversalProvider from '@walletconnect/universal-provider'
 
 import { getPreferredAccountType } from '../../utils/ChainControllerUtil.js'
 import { CoreHelperUtil } from '../../utils/CoreHelperUtil.js'
@@ -27,6 +26,7 @@ import { WcHelpersUtil } from '../../utils/WalletConnectUtil.js'
 import { type AccountState } from '../ChainController.js'
 import { ChainController } from '../ChainController.js'
 import { ConnectorController } from '../ConnectorController.js'
+import { OptionsController } from '../OptionsController.js'
 import { ProviderController } from '../ProviderController.js'
 import type { WalletConnectConnector } from './WalletConnectConnector.js'
 import type { ChainAdapterConnector } from './types.js'
@@ -79,6 +79,7 @@ export abstract class AdapterBlueprint<
     } | null
   > = {}
   private eventListeners = new Map<EventName, Set<EventCallback<EventName>>>()
+  private lastDebugLogSignatures: Record<string, string> = {}
 
   /**
    * Creates an instance of AdapterBlueprint.
@@ -284,6 +285,57 @@ export abstract class AdapterBlueprint<
    * @param {EventData[T]} [data] - The optional data to be passed to the event listeners
    */
   protected emit<T extends EventName>(eventName: T, data?: EventData[T]) {
+    if (OptionsController.state?.debug) {
+      let payloadForLog: unknown = data
+      let signature: string
+
+      if (eventName === 'connectors') {
+        const ids = Array.isArray(data)
+          ? (data as unknown as Array<{ id: string }>).map(c => c?.id).filter(Boolean)
+          : []
+        payloadForLog = ids
+        signature = `connectors:${ids.join(',')}`
+      } else if (eventName === 'connections') {
+        const list = Array.isArray(data) ? (data as unknown as Array<unknown>).length : 0
+        const conns = Array.isArray(data)
+          ? (data as unknown as Array<{ connectorId: string; chainId?: string | number }>).map(
+              c => `${c.connectorId}:${c.chainId ?? ''}`
+            )
+          : []
+        payloadForLog = list
+        signature = `connections:${conns.join('|')}`
+      } else if (eventName === 'accountChanged') {
+        const ac = data as unknown as {
+          address?: string
+          chainId?: string | number
+          connector?: { id?: string }
+        }
+        payloadForLog = {
+          address: ac?.address,
+          chainId: ac?.chainId,
+          connectorId: ac?.connector?.id
+        }
+        signature = `accountChanged:${ac?.address ?? ''}:${ac?.chainId ?? ''}:${ac?.connector?.id ?? ''}`
+      } else if (eventName === 'disconnect') {
+        payloadForLog = undefined
+        signature = 'disconnect'
+      } else if (eventName === 'pendingTransactions') {
+        payloadForLog = undefined
+        signature = 'pendingTransactions'
+      } else if (eventName === 'switchNetwork') {
+        const sw = data as unknown as { address?: string; chainId: string | number }
+        payloadForLog = { address: sw?.address, chainId: sw?.chainId }
+        signature = `switchNetwork:${sw?.address ?? ''}:${sw?.chainId ?? ''}`
+      } else {
+        signature = `${String(eventName)}:${JSON.stringify(data)}`
+      }
+
+      if (this.lastDebugLogSignatures[String(eventName)] !== signature) {
+        this.lastDebugLogSignatures[String(eventName)] = signature
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Adapter]', this.namespace, 'emit', eventName, payloadForLog)
+      }
+    }
     const listeners = this.eventListeners.get(eventName)
     if (listeners) {
       listeners.forEach(callback => callback(data as EventData[T]))
@@ -652,10 +704,39 @@ export abstract class AdapterBlueprint<
       return
     }
 
-    const accountsChangedHandler = (accounts: string[]) =>
+    const accountsChangedHandler = (accounts: string[]) => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug(
+          '[AppKit][Adapter]',
+          this.namespace,
+          connectorId,
+          'provider accountsChanged',
+          accounts
+        )
+      }
       this.onAccountsChanged(accounts, connectorId)
-    const chainChangedHandler = (chainId: string) => this.onChainChanged(chainId, connectorId)
-    const disconnectHandler = () => this.onDisconnect(connectorId)
+    }
+    const chainChangedHandler = (chainId: string) => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug(
+          '[AppKit][Adapter]',
+          this.namespace,
+          connectorId,
+          'provider chainChanged',
+          chainId
+        )
+      }
+      this.onChainChanged(chainId, connectorId)
+    }
+    const disconnectHandler = () => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Adapter]', this.namespace, connectorId, 'provider disconnect')
+      }
+      this.onDisconnect(connectorId)
+    }
 
     if (!this.providerHandlers[connectorId]) {
       provider.on('disconnect', disconnectHandler)

@@ -9,7 +9,7 @@
 // Note: UniversalProvider not used - Polkadot only uses injected connectors, not WalletConnect
 // import type UniversalProvider from '@walletconnect/universal-provider'
 import type { CaipNetwork, ChainNamespace, Connection } from '@laughingwhales/appkit-common'
-import { AdapterBlueprint } from '@laughingwhales/appkit-controllers'
+import { AdapterBlueprint, ChainController } from '@laughingwhales/appkit-controllers'
 import { ConstantsUtil, PresetsUtil } from '@laughingwhales/appkit-utils'
 
 import { PolkadotConnectorProvider } from './connectors/InjectedConnector.js'
@@ -39,6 +39,7 @@ interface PolkadotConnector {
   type: string
   name: string
   imageId?: string
+  imageUrl?: string
   explorerId?: string
   provider: PolkadotProvider
   accounts: PolkadotAccount[]
@@ -58,6 +59,8 @@ export type AccountSelectionCallback = (accounts: PolkadotAccount[]) => Promise<
 export interface PolkadotAdapterOptions {
   appName?: string
   preferredWallets?: PolkadotWalletSource[]
+  /** Enable verbose debug logs (stacks, internal states) */
+  debug?: boolean
   /**
    * Optional callback for account selection when multiple accounts exist
    * If not provided, the first account will be selected automatically
@@ -84,6 +87,33 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   private onSelectAccount?: AccountSelectionCallback
   private libs?: PolkadotLibs
   private isConnecting: boolean = false
+  private readonly debug: boolean = false
+
+  // Wallet metadata for image URLs and IDs
+  private static readonly walletMetadataMap: Record<
+    string,
+    { name: string; imageId?: string; imageUrl?: string; explorerId?: string }
+  > = {
+    'subwallet-js': {
+      name: ConstantsUtil.SUBWALLET_CONNECTOR_NAME,
+      imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.SUBWALLET_CONNECTOR_NAME],
+      imageUrl:
+        'https://raw.githubusercontent.com/Koniverse/SubWallet-Chain/master/packages/chain-list/src/logo/subwallet.png',
+      explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.SUBWALLET_CONNECTOR_NAME]
+    },
+    talisman: {
+      name: ConstantsUtil.TALISMAN_CONNECTOR_NAME,
+      imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.TALISMAN_CONNECTOR_NAME],
+      imageUrl: 'https://talisman.xyz/favicon.svg',
+      explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.TALISMAN_CONNECTOR_NAME]
+    },
+    'polkadot-js': {
+      name: ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME,
+      imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME],
+      imageUrl: 'https://polkadot.js.org/apps/favicon.ico',
+      explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME]
+    }
+  }
 
   constructor(options: PolkadotAdapterOptions = {}) {
     super({
@@ -94,6 +124,7 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
     this.appName = options.appName || 'AppKit Polkadot'
     this.preferredWallets = options.preferredWallets || ['subwallet-js', 'talisman', 'polkadot-js']
     this.onSelectAccount = options.onSelectAccount
+    this.debug = Boolean(options.debug)
 
     console.log('[PolkadotAdapter] CONSTRUCTED with options:', options)
     console.log('[PolkadotAdapter] namespace:', this.namespace)
@@ -246,8 +277,6 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
                 chainId: connection.caipNetwork?.id,
                 connector: this.connectors.find(c => c.id === connectorId)
               })
-              // Emit connections after accountChanged
-              this.emit('connections', this.connections)
             }
           }
         }
@@ -364,12 +393,14 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       const walletName = walletMapping?.walletName || source
 
       // Create a proper connector class instance
+      const walletMetadata = PolkadotAdapter.walletMetadataMap[source] || { name: walletName }
       const connector = new PolkadotConnectorProvider({
         id: walletId, // Use AppKit-friendly ID
         source, // Keep internal source ID for connect logic
         name: walletName,
-        imageId: PresetsUtil.ConnectorImageIds[walletName],
-        explorerId: PresetsUtil.ConnectorExplorerIds[walletName],
+        imageId: walletMetadata.imageId,
+        imageUrl: walletMetadata.imageUrl,
+        explorerId: walletMetadata.explorerId,
         chains: polkadotChains,
         // Use namespace for ConnectorController filtering (not CAIP-2 ID)
         chain: this.namespace as string,
@@ -398,10 +429,10 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       return connector
     })
 
-    // Add connectors to adapter
-    newConnectors.forEach(connector => {
-      this.addConnector(connector as any)
-    })
+    // Add connectors to adapter (batch to emit once)
+    if (newConnectors.length > 0) {
+      this.addConnector(...(newConnectors as any))
+    }
 
     console.log(
       '[PolkadotAdapter] Registered connectors:',
@@ -416,8 +447,7 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       newConnectors.map(c => ({ id: c.id, name: c.name }))
     )
 
-    // Emit connectors event to notify AppKit of available wallets
-    this.emit('connectors', this.connectors)
+    // Connectors are emitted by addConnector calls above; avoid duplicate emission here
   }
 
   // =============================================================================
@@ -439,7 +469,9 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
     console.log('[PolkadotAdapter] extensionsEnabled:', this.extensionsEnabled)
     console.log('[PolkadotAdapter] enablePromise exists:', !!this.enablePromise)
     console.log('[PolkadotAdapter] isConnecting:', this.isConnecting)
-    console.log('[PolkadotAdapter] Stack:', new Error().stack)
+    if (this.debug) {
+      console.log('[PolkadotAdapter] Stack:', new Error().stack)
+    }
     console.log('[PolkadotAdapter] ========================================')
 
     try {
@@ -462,17 +494,50 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       if (existingConnection?.account) {
         console.log('[PolkadotAdapter] Existing connection found, returning early')
         const connector = this.connectors.find(c => c.id === params.id)
+        // Prefer the stored caipNetwork; if missing, use active polkadot network; then default
+        const activeCaip = ChainController.getActiveCaipNetwork(this.namespace as ChainNamespace)
+        const resolvedCaipNetwork =
+          existingConnection.caipNetwork || activeCaip || this.getCaipNetworks(this.namespace)[0]
+        const resolvedChainId = String(resolvedCaipNetwork?.id || this.getDefaultChainId())
+
+        // If the stored connection was missing caipNetwork, update it for future restores
+        if (!existingConnection.caipNetwork && resolvedCaipNetwork) {
+          this.addConnection({
+            ...existingConnection,
+            caipNetwork: resolvedCaipNetwork
+          } as Connection)
+        }
+
         this.emit('accountChanged', {
           address: existingConnection.account.address,
-          chainId: existingConnection.caipNetwork?.id,
+          chainId: resolvedChainId,
           connector
         })
         this.isConnecting = false
+
+        // Ensure provider is a usable injected provider (not an empty object)
+        let injectedProvider: PolkadotProvider | undefined
+        try {
+          const source = this.getWalletSource(params.id)
+          const injectedWeb3 =
+            typeof window !== 'undefined' ? (window as any).injectedWeb3 : undefined
+          const ext = injectedWeb3?.[source]
+          if (ext?.enable) {
+            injectedProvider = await ext.enable(this.appName)
+          }
+        } catch (e) {
+          if (this.debug) {
+            console.warn(
+              '[PolkadotAdapter] Failed to eagerly enable provider on existing connection:',
+              e
+            )
+          }
+        }
         return {
           id: params.id,
           type: 'INJECTED' as any,
-          provider: connector?.provider as any,
-          chainId: String(existingConnection.caipNetwork?.id || this.getDefaultChainId()),
+          provider: (injectedProvider || (connector?.provider as any)) as any,
+          chainId: resolvedChainId,
           address: existingConnection.account.address,
           accounts: [] as any
         }
@@ -559,59 +624,57 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
         }
       }
 
-      // Get wallet metadata from mapping
-      const walletMetadataMap: Record<
-        string,
-        { name: string; imageId?: string; explorerId?: string }
-      > = {
-        'subwallet-js': {
-          name: ConstantsUtil.SUBWALLET_CONNECTOR_NAME,
-          imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.SUBWALLET_CONNECTOR_NAME],
-          explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.SUBWALLET_CONNECTOR_NAME]
-        },
-        talisman: {
-          name: ConstantsUtil.TALISMAN_CONNECTOR_NAME,
-          imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.TALISMAN_CONNECTOR_NAME],
-          explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.TALISMAN_CONNECTOR_NAME]
-        },
-        'polkadot-js': {
-          name: ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME,
-          imageId: PresetsUtil.ConnectorImageIds[ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME],
-          explorerId: PresetsUtil.ConnectorExplorerIds[ConstantsUtil.POLKADOT_JS_CONNECTOR_NAME]
-        }
-      }
-      const walletMetadata = walletMetadataMap[source] || {
+      // Get wallet metadata from static mapping
+      const walletMetadata = PolkadotAdapter.walletMetadataMap[source] || {
         name: source,
         imageId: undefined,
+        imageUrl: undefined,
         explorerId: undefined
       }
 
       // Create connector
-      const chainId = String(params.chainId || this.getDefaultChainId())
-      const caipNetwork =
-        this.getCaipNetworks('polkadot' as ChainNamespace).find(n => n.id === chainId) ||
-        this.getCaipNetworks('polkadot' as ChainNamespace)[0]
+      // Resolve desired chainId: explicit param → active polkadot network → default relay
+      const activeCaip = ChainController.getActiveCaipNetwork(this.namespace as ChainNamespace)
+      // Prefer currently active polkadot network if available, then explicit param, then default
+      const resolvedChainId = String(activeCaip?.id || params.chainId || this.getDefaultChainId())
+      const networks = this.getCaipNetworks('polkadot' as ChainNamespace)
+      if (params.chainId && !networks.find(n => n.id === String(params.chainId))) {
+        console.warn(
+          '[PolkadotAdapter] Unknown chainId provided; falling back to first configured network:',
+          params.chainId
+        )
+      }
+      const caipNetwork = networks.find(n => n.id === resolvedChainId) || networks[0]
+      if (!caipNetwork) {
+        console.error(
+          '[PolkadotAdapter] No known Polkadot networks configured. Unable to resolve network for connect().'
+        )
+        throw new Error('No known Polkadot networks configured')
+      }
       const connector: PolkadotConnector = {
         id: params.id,
         type: 'INJECTED',
         name: walletMetadata.name,
         imageId: walletMetadata.imageId,
+        imageUrl: walletMetadata.imageUrl,
         explorerId: walletMetadata.explorerId,
-        // Defer injector retrieval to signing time to avoid unnecessary extension calls
+        // Populate with real injected provider after enabling the specific extension below
         provider: {} as unknown as PolkadotProvider,
         accounts,
         chains: caipNetwork ? [caipNetwork] : [],
-        chain: chainId
+        chain: resolvedChainId
       }
 
       // Store connector
       console.log('[PolkadotAdapter] Step 6: Storing connector...')
+      console.log('[PolkadotAdapter] Connector imageUrl:', connector.imageUrl)
+      console.log('[PolkadotAdapter] Connector imageId:', connector.imageId)
       this.addConnector(connector)
 
       // Create connection with account
       const connection = {
         connectorId: params.id,
-        chainId: String(chainId),
+        chainId: String(resolvedChainId),
         accounts: [{ address: selectedAccount.address }],
         caipNetwork
       } as Connection
@@ -622,25 +685,60 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       // Emit accountChanged event first (like Solana/Bitcoin adapters)
       this.emit('accountChanged', {
         address: selectedAccount.address,
-        chainId: String(chainId),
+        chainId: String(resolvedChainId),
         connector: connector as any
       })
       console.log('[PolkadotAdapter] Step 6b: accountChanged event emitted')
 
-      // Emit connections event after accountChanged
-      this.emit('connections', this.connections)
-      console.log('[PolkadotAdapter] Step 6c: connections event emitted')
+      // Connections event already emitted by addConnection
 
       // Setup account subscription for this wallet
       console.log('[PolkadotAdapter] Step 7: Setting up account subscription...')
       await this.setupAccountSubscription(params.id)
       console.log('[PolkadotAdapter] Step 7: Account subscription ready ✓')
 
+      // Enable and attach the real injected provider for downstream usage (auth/signing)
+      try {
+        const injectedWeb3 =
+          typeof window !== 'undefined' ? (window as any).injectedWeb3 : undefined
+        const ext = injectedWeb3?.[source]
+        if (ext?.enable) {
+          const injectedProvider = await ext.enable(this.appName)
+          connector.provider = injectedProvider as PolkadotProvider
+        } else if (this.debug) {
+          console.warn(
+            '[PolkadotAdapter] Extension for source not found or missing enable():',
+            source
+          )
+        }
+      } catch (e) {
+        if (this.debug) {
+          console.warn('[PolkadotAdapter] Failed to enable injected provider:', e)
+        }
+      }
+
+      // Eagerly initialize and cache the chain API to speed up first reads
+      try {
+        void this.getApi(caipNetwork)
+          .then(() => {
+            if (this.debug) {
+              console.log('[PolkadotAdapter] Eager API initialization complete for', caipNetwork.id)
+            }
+          })
+          .catch(err => {
+            if (this.debug) {
+              console.warn('[PolkadotAdapter] Eager API initialization failed (non-fatal):', err)
+            }
+          })
+      } catch {
+        // Non-fatal if eager init throws synchronously
+      }
+
       const result: AdapterBlueprint.ConnectResult = {
         id: connector.id,
         type: 'INJECTED' as any,
         provider: connector.provider as any,
-        chainId: String(chainId),
+        chainId: String(resolvedChainId),
         address: selectedAccount.address,
         accounts: [] as any
       }
@@ -707,8 +805,7 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       }
     }
 
-    // Emit connections update
-    this.emit('connections', this.connections)
+    // Connections event already emitted by deleteConnection/clearConnections
 
     // Emit disconnect event if no connections remain
     if (this.connections.length === 0) {
@@ -777,23 +874,41 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       const api = await this.getApi(params.caipNetwork)
       console.log('[PolkadotAdapter] API obtained, querying account...')
 
+      // Detect if this is Asset Hub (following your pattern)
+      const chainName = api.runtimeChain?.toString() || ''
+      const isAssetHub =
+        chainName.toLowerCase().includes('asset') ||
+        chainName.toLowerCase().includes('statemint') ||
+        params.caipNetwork.name?.toLowerCase().includes('asset')
+
+      console.log('[PolkadotAdapter] Chain detection:', { chainName, isAssetHub })
+
       const accountInfo = await api.query.system.account(params.address)
       const data = (accountInfo as any).data
 
-      // Handle empty/non-existent accounts (below existential deposit)
-      const free = data?.free ? data.free.toString() : '0'
+      // Calculate TRANSFERABLE balance (free - frozen) following your pattern
+      const free = data?.free ? BigInt(data.free.toString()) : BigInt(0)
+      const miscFrozen = data?.miscFrozen ? BigInt(data.miscFrozen.toString()) : BigInt(0)
+      const feeFrozen = data?.feeFrozen ? BigInt(data.feeFrozen.toString()) : BigInt(0)
+      const frozen = miscFrozen > feeFrozen ? miscFrozen : feeFrozen
+      const transferable = free - frozen
+
       const decimals = api.registry.chainDecimals[0] || 10
       const symbol = api.registry.chainTokens[0] || 'DOT'
 
-      const formattedBalance = this.libs!.formatBalance(free, {
+      // Format the TRANSFERABLE balance (what user can actually spend)
+      const formattedBalance = this.libs!.formatBalance(transferable.toString(), {
         decimals,
         withUnit: false
       })
 
       console.log('[PolkadotAdapter] Balance fetched successfully:', {
-        free,
+        free: Number(free) / Math.pow(10, decimals),
+        frozen: Number(frozen) / Math.pow(10, decimals),
+        transferable: Number(transferable) / Math.pow(10, decimals),
         formattedBalance,
-        symbol
+        symbol,
+        isAssetHub
       })
 
       // Cache the result
@@ -983,6 +1098,21 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
     // Polkadot extensions don't support programmatic network switching
     // Network is selected by user in extension UI
     console.log('[PolkadotAdapter] Network switch requested:', params.caipNetwork.name)
+
+    // Call parent to emit base events
+    await super.switchNetwork(params)
+
+    // Trigger balance update for the new network
+    const connection = this.availableConnections.find(conn => conn.connectorId)
+    if (connection && connection.accounts[0]) {
+      console.log('[PolkadotAdapter] Triggering balance update after network switch')
+
+      // Emit accountChanged to trigger balance refresh in the UI
+      this.emit('accountChanged', {
+        address: connection.accounts[0].address,
+        chainId: params.caipNetwork.id
+      })
+    }
   }
 
   /**
@@ -1071,10 +1201,7 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
     }
 
     // Fallback: check if http URLs are actually wss://
-    const httpUrls = [
-      ...(defaultRpc?.http || []),
-      ...(publicRpc?.http || [])
-    ]
+    const httpUrls = [...(defaultRpc?.http || []), ...(publicRpc?.http || [])]
     httpUrls.forEach((url: string) => {
       if (url?.startsWith('wss://') && !urls.includes(url)) {
         urls.push(url)
@@ -1111,22 +1238,54 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
       throw new Error('No WebSocket RPC URL configured for Substrate network')
     }
 
+    // Helper to add timeout to API connection
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`Connection timeout after ${timeoutMs}ms`)), timeoutMs)
+        )
+      ])
+    }
+
     // Try each endpoint until one succeeds
     let lastError: Error | undefined
     for (const wsUrl of wsUrls) {
       try {
         console.log('[PolkadotAdapter] Attempting API connection to:', wsUrl)
-        const provider = new this.libs!.WsProvider(wsUrl, false) // autoConnect = false for better error handling
-        const api = await this.libs!.ApiPromise.create({ provider })
 
-        // Verify connection is established
-        await api.isReady
-        console.log('[PolkadotAdapter] API created successfully for:', caipNetwork.id, 'using', wsUrl)
+        // Add 15 second timeout to API creation and connection
+        const api = await withTimeout(
+          (async () => {
+            // Use autoConnect: true (default) to establish connection immediately
+            const provider = new this.libs!.WsProvider(wsUrl)
+            const apiInstance = await this.libs!.ApiPromise.create({ provider })
+            // Verify connection is established
+            await apiInstance.isReady
+            console.log('[PolkadotAdapter] API connection verified for:', wsUrl)
+            return apiInstance
+          })(),
+          15000
+        )
+
+        console.log(
+          '[PolkadotAdapter] API created successfully for:',
+          caipNetwork.id,
+          'using',
+          wsUrl
+        )
         this.apiCache.set(String(caipNetwork.id), api)
         return api
       } catch (error) {
         console.warn('[PolkadotAdapter] Failed to connect to:', wsUrl, error)
         lastError = error as Error
+        // Try to disconnect the failed provider to clean up
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(error as any)?.provider?.disconnect?.()
+        } catch {
+          // Ignore cleanup errors
+        }
         // Continue to next endpoint
       }
     }

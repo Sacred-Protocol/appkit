@@ -16,6 +16,7 @@ import { farcasterSvg } from '../../assets/svg/farcaster.js'
 import { githubSvg } from '../../assets/svg/github.js'
 import { googleSvg } from '../../assets/svg/google.js'
 import { playStoreSvg } from '../../assets/svg/play-store.js'
+import { polkadotSvg } from '../../assets/svg/polkadot.js'
 import { reownSvg } from '../../assets/svg/reown-logo.js'
 import { solanaSvg } from '../../assets/svg/solana.js'
 import { telegramSvg } from '../../assets/svg/telegram.js'
@@ -114,6 +115,7 @@ const phosphorIconsMap: Record<string, string> = {
   github: '',
   google: '',
   playStore: '',
+  polkadot: '',
   reown: '',
   solana: '',
   telegram: '',
@@ -198,6 +200,7 @@ const svgOptions: Partial<Record<IconType, TemplateResult<2>>> = {
   github: githubSvg,
   google: googleSvg,
   playStore: playStoreSvg,
+  polkadot: polkadotSvg,
   reown: reownSvg,
   solana: solanaSvg,
   telegram: telegramSvg,

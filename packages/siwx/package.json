@@ -1,6 +1,6 @@
 {
   "name": "@laughingwhales/appkit-siwx",
-  "version": "1.8.13",
+  "version": "1.8.21",
   "sideEffects": false,
   "type": "module",
   "main": "./dist/esm/src/index.js",
@@ -78,6 +78,6 @@
     "bitcoin"
   ],
   "publishConfig": {
-    "provenance": true
+    "provenance": false
   }
 }

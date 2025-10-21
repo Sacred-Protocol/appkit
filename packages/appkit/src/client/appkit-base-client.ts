@@ -1,7 +1,3 @@
-import type { SessionTypes } from '@walletconnect/types'
-import UniversalProvider from '@walletconnect/universal-provider'
-import type { UniversalProviderOpts } from '@walletconnect/universal-provider'
-
 import type {
   AppKitNetwork,
   AppKitSdkVersion,
@@ -83,6 +79,9 @@ import {
   TokenUtil,
   ConstantsUtil as UtilConstantsUtil
 } from '@laughingwhales/appkit-utils'
+import type { SessionTypes } from '@walletconnect/types'
+import UniversalProvider from '@walletconnect/universal-provider'
+import type { UniversalProviderOpts } from '@walletconnect/universal-provider'
 
 import { UniversalAdapter } from '../universal-adapter/client.js'
 import { ConfigUtil } from '../utils/ConfigUtil.js'
@@ -1151,7 +1150,18 @@ export abstract class AppKitBaseClient {
   protected onConnectors(chainNamespace: ChainNamespace) {
     const adapter = this.getAdapter(chainNamespace)
 
-    adapter?.on('connectors', this.setConnectors.bind(this))
+    adapter?.on('connectors', connectors => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug(
+          '[AppKit][Client]',
+          chainNamespace,
+          'connectors',
+          connectors?.map?.(c => c?.id)
+        )
+      }
+      this.setConnectors(connectors)
+    })
   }
 
   protected listenAdapter(chainNamespace: ChainNamespace) {
@@ -1179,6 +1189,10 @@ export abstract class AppKitBaseClient {
     }
 
     adapter.on('switchNetwork', ({ address, chainId }) => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Client]', chainNamespace, 'switchNetwork', { address, chainId })
+      }
       const caipNetwork = this.getCaipNetworks().find(
         n =>
           n.id.toString() === chainId.toString() ||
@@ -1199,6 +1213,10 @@ export abstract class AppKitBaseClient {
     })
 
     adapter.on('disconnect', () => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Client]', chainNamespace, 'disconnect')
+      }
       const isMultiWallet = this.remoteFeatures.multiWallet
       const allConnections = Array.from(ConnectionController.state.connections.values()).flat()
 
@@ -1209,10 +1227,18 @@ export abstract class AppKitBaseClient {
     })
 
     adapter.on('connections', connections => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Client]', chainNamespace, 'connections', connections?.length)
+      }
       this.setConnections(connections, chainNamespace)
     })
 
     adapter.on('pendingTransactions', () => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Client]', chainNamespace, 'pendingTransactions')
+      }
       const address = this.getAddress(chainNamespace)
 
       const activeCaipNetwork = ChainController.state.activeCaipNetwork
@@ -1225,6 +1251,14 @@ export abstract class AppKitBaseClient {
     })
 
     adapter.on('accountChanged', ({ address, chainId, connector }) => {
+      if (OptionsController.state?.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[AppKit][Client]', chainNamespace, 'accountChanged', {
+          address,
+          chainId,
+          connectorId: connector?.id
+        })
+      }
       this.handlePreviousConnectorConnection(connector)
 
       const isActiveChain = ChainController.state.activeChain === chainNamespace

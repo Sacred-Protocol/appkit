@@ -22,7 +22,15 @@ export const networkImages = {
   // Bitcoin
   '000000000019d6689c085ae165831e93': '0b4838db-0161-4ffe-022d-532bf03dba00',
   // Bitcoin Testnet
-  '000000000933ea01ad0ee984209779ba': '39354064-d79b-420b-065d-f980c4b78200'
+  '000000000933ea01ad0ee984209779ba': '39354064-d79b-420b-065d-f980c4b78200',
+  // Polkadot mainnet
+  '91b171bb158e2d3848fa23a9f1c25182': '/polkadot.svg',
+  // Polkadot Asset Hub (Statemint)
+  '68d56f15f85d3136970ec16946040bc1': '/polkadot.svg',
+  // Kusama
+  b0a8d493285c2df73290dfb7e61f870f: '/polkadot.svg',
+  // Westend Testnet
+  e143f23803ac50e8f6f8e62695d1ce9e: '/polkadot.svg'
 }
 
 export const chainImages = {
@@ -33,5 +41,11 @@ export const chainImages = {
 }
 
 export function getImageDeliveryURL(imageId: string) {
+  if (!imageId) {
+    return '/polkadot.svg'
+  }
+  if (imageId.startsWith('http') || imageId.startsWith('/')) {
+    return imageId
+  }
   return `https://imagedelivery.net/_aTEfDRm7z3tKgu9JhfeKA/${imageId}/sm`
 }

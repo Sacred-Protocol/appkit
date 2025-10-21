@@ -1,8 +1,7 @@
-import { proxy } from 'valtio/vanilla'
-import { subscribeKey as subKey } from 'valtio/vanilla/utils'
-
 import { ConstantsUtil } from '@laughingwhales/appkit-common'
 import type { ChainNamespace } from '@laughingwhales/appkit-common'
+import { proxy } from 'valtio/vanilla'
+import { subscribeKey as subKey } from 'valtio/vanilla/utils'
 
 import { AssetUtil } from '../utils/AssetUtil.js'
 import { CoreHelperUtil } from '../utils/CoreHelperUtil.js'
@@ -134,6 +133,18 @@ export const ApiController = {
     const imageUrl = `${api.baseUrl}/public/getAssetImage/${imageId}`
     const blob = await api.getBlob({ path: imageUrl, params: ApiController._getSdkProperties() })
     AssetController.setNetworkImage(imageId, URL.createObjectURL(blob))
+  },
+
+  async fetchNamespaceImages() {
+    try {
+      const ids = AssetUtil.getAllNamespaceImageIds()
+      const missing = ids.filter(id => !AssetUtil.getNetworkImageById(id))
+      if (missing.length) {
+        await Promise.allSettled(missing.map(id => ApiController._fetchNetworkImage(id)))
+      }
+    } catch {
+      // ignore errors silently — non-blocking enhancement
+    }
   },
 
   async _fetchConnectorImage(imageId: string) {
@@ -513,6 +524,7 @@ export const ApiController = {
         ApiController.initPromise('recommendedWallets', ApiController.fetchRecommendedWallets),
       fetchNetworkImages &&
         ApiController.initPromise('networkImages', ApiController.fetchNetworkImages),
+      ApiController.initPromise('namespaceImages', ApiController.fetchNamespaceImages),
       fetchWalletRanks &&
         ApiController.initPromise('walletRanks', ApiController.prefetchWalletRanks)
     ].filter(Boolean)
