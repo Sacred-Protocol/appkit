@@ -1,0 +1,21 @@
+{
+  "description": "Example package.json for external projects using sacred-appkit via GitHub tarballs",
+  "dependencies": {
+    "@laughingwhales/appkit": "https://api.github.com/repos/laughingwhales/sacred-appkit/tarball/main#subdirectory=packages/appkit",
+    "@laughingwhales/appkit-adapter-wagmi": "https://api.github.com/repos/laughingwhales/sacred-appkit/tarball/main#subdirectory=packages/adapters/wagmi",
+    "@laughingwhales/appkit-adapter-solana": "https://api.github.com/repos/laughingwhales/sacred-appkit/tarball/main#subdirectory=packages/adapters/solana",
+    "@laughingwhales/appkit-adapter-bitcoin": "https://api.github.com/repos/laughingwhales/sacred-appkit/tarball/main#subdirectory=packages/adapters/bitcoin",
+    "@laughingwhales/appkit-adapter-ethers": "https://api.github.com/repos/laughingwhales/sacred-appkit/tarball/main#subdirectory=packages/adapters/ethers"
+  },
+  "notes": {
+    "main_branch": "Use 'main' for latest development version",
+    "tagged_version": "Use 'v1.8.21' for a specific tagged release",
+    "feature_branch": "Use 'feature/my-branch' to test unreleased features",
+    "commit_hash": "Use a commit SHA for maximum stability"
+  },
+  "alternative_formats": {
+    "git_https": "git+https://github.com/laughingwhales/sacred-appkit.git#main:packages/appkit",
+    "git_ssh": "git+ssh://git@github.com/laughingwhales/sacred-appkit.git#main:packages/appkit",
+    "github_shorthand": "laughingwhales/sacred-appkit#main:packages/appkit"
+  }
+}

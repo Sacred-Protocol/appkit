@@ -62,7 +62,10 @@
     "codemod:upgrade:radix": "node packages/codemod/src/index.js upgrade @radix-ui/* && pnpm install",
     "size": "size-limit",
     "size:why": "size-limit --why",
-    "size:json": "size-limit --json"
+    "size:json": "size-limit --json",
+    "deps:github": "node scripts/convert-to-github-tarball.js",
+    "deps:workspace": "node scripts/restore-to-workspace.js",
+    "deps:check": "node scripts/check-dependency-mode.js"
   },
   "devDependencies": {
     "@changesets/assemble-release-plan": "6.0.6",
