@@ -16,7 +16,10 @@ This fork includes:
 - Packages renamed to `@laughingwhales/*` scope
 - Custom adapters and features
 - Polkadot support enhancements
+- **GitHub tarball distribution (no npm publishing)**
 - Flexible dependency management for rapid development
+
+> **📦 Note:** We don't publish to npm. Install directly from GitHub using tarball URLs for instant updates!
 
 ## Installation
 
