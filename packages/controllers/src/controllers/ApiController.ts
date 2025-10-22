@@ -581,6 +581,7 @@ export const ApiController = {
     if (!namespace) {
       state.featured = state.allFeatured
       state.recommended = state.allRecommended
+      state.filteredWallets = []
 
       return
     }

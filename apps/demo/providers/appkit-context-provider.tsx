@@ -3,18 +3,22 @@
 import { type ReactNode, useEffect, useState } from 'react'
 
 import { type UniqueIdentifier } from '@dnd-kit/core'
-import { useTheme } from 'next-themes'
-import { Toaster } from 'sonner'
-import { useSnapshot } from 'valtio'
-
 import { type ChainNamespace } from '@laughingwhales/appkit-common'
-import { type ConnectMethod, ConstantsUtil, type RemoteFeatures } from '@laughingwhales/appkit-controllers'
+import {
+  type ConnectMethod,
+  ConnectorController,
+  ConstantsUtil,
+  type RemoteFeatures
+} from '@laughingwhales/appkit-controllers'
 import {
   type Features,
   type ThemeMode,
   type ThemeVariables,
   useAppKitState
 } from '@laughingwhales/appkit/react'
+import { useTheme } from 'next-themes'
+import { Toaster } from 'sonner'
+import { useSnapshot } from 'valtio'
 
 import { AppKitContext } from '@/contexts/appkit-context'
 import { initialConfig, initialEnabledNetworks } from '@/lib/config'
@@ -60,7 +64,7 @@ export function ContextProvider({ children }: AppKitProviderProps) {
     social: false
   })
   const [enabledChains, setEnabledChains] = useState<ChainNamespace[]>(
-    initialConfig?.enabledChains || ['eip155', 'solana', 'bip122']
+    initialConfig?.enabledChains || ['eip155', 'solana', 'bip122', 'polkadot']
   )
   const [enabledNetworks, setEnabledNetworks] = useState<(string | number)[]>(
     initialEnabledNetworks || []
@@ -109,6 +113,9 @@ export function ContextProvider({ children }: AppKitProviderProps) {
 
       return newNetworks
     })
+
+    // Clear wallet filter to show all wallets again
+    ConnectorController.setFilterByNamespace(undefined)
   }
 
   function enableChain(chain: ChainNamespace) {
@@ -130,6 +137,9 @@ export function ContextProvider({ children }: AppKitProviderProps) {
 
       return newNetworks
     })
+
+    // Clear wallet filter to show all wallets again
+    ConnectorController.setFilterByNamespace(undefined)
   }
 
   function removeNetwork(network: NetworkOption) {

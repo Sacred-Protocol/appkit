@@ -153,5 +153,5 @@ export const polkadotNetworks = [polkadotRelay, assetHub, kusamaRelay, westendTe
 /**
  * Default network (Polkadot Relay Chain)
  */
-export const defaultPolkadotNetwork = polkadotRelay
+export const defaultPolkadotNetwork = assetHub
 

@@ -47,5 +47,6 @@ export function getImageDeliveryURL(imageId: string) {
   if (imageId.startsWith('http') || imageId.startsWith('/')) {
     return imageId
   }
+
   return `https://imagedelivery.net/_aTEfDRm7z3tKgu9JhfeKA/${imageId}/sm`
 }

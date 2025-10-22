@@ -2,9 +2,8 @@
 
 import React, { type ReactNode } from 'react'
 
-import { ref } from 'valtio/vanilla'
-
 import { createAppKit } from '@laughingwhales/appkit/react'
+import { ref } from 'valtio/vanilla'
 
 import { appKitConfigs, initialConfig } from '@/lib/config'
 import { ThemeStore } from '@/lib/theme-store'

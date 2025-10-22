@@ -287,3 +287,4 @@ The GitHub tarball workflow gives you the best of both worlds:
 - Quick deployments without npm publishing
 
 Use the provided scripts to switch between modes seamlessly!
+

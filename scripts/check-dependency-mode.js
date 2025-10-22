@@ -174,3 +174,4 @@ if (!isConsistent) {
 console.log(
   `📊 Total checked: ${totalChecked} dependencies across ${Object.keys(results).length} files\n`
 )
+

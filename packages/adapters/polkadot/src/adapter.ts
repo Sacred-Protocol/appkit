@@ -4,15 +4,23 @@
  * Polkadot Adapter for AppKit
  *
  * Implements AppKit's AdapterBlueprint interface for Polkadot/Substrate chains.
- * Handles injected wallet extensions (SubWallet, Talisman, polkadot-js).
+ * Handles injected wallet extensions (SubWallet, Talisman, polkadot-js) and WalletConnect.
  */
-// Note: UniversalProvider not used - Polkadot only uses injected connectors, not WalletConnect
-// import type UniversalProvider from '@walletconnect/universal-provider'
 import type { CaipNetwork, ChainNamespace, Connection } from '@laughingwhales/appkit-common'
-import { AdapterBlueprint, ChainController } from '@laughingwhales/appkit-controllers'
+import { ConstantsUtil as CommonConstantsUtil } from '@laughingwhales/appkit-common'
+import {
+  AdapterBlueprint,
+  ChainController,
+  WcHelpersUtil
+} from '@laughingwhales/appkit-controllers'
 import { ConstantsUtil, PresetsUtil } from '@laughingwhales/appkit-utils'
+import type UniversalProvider from '@walletconnect/universal-provider'
+
+// NOTE: Avoid importing external Polkadot types to keep package peerless.
+// Use structural types locally where needed.
 
 import { PolkadotConnectorProvider } from './connectors/InjectedConnector.js'
+import { PolkadotWalletConnectConnector } from './connectors/PolkadotWalletConnectConnector.js'
 import type {
   InjectedAccountWithMeta,
   PolkadotAccount,
@@ -79,8 +87,8 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   private apiCache: Map<string, any> = new Map()
   private balanceCache: Map<string, { balance: string; symbol: string; timestamp: number }> =
     new Map()
-  // Note: universalProvider not used - Polkadot only uses injected connectors
-  // private universalProvider?: UniversalProvider
+  // @ts-expect-error - stored for potential future use and to match other adapters' patterns
+  private universalProvider: UniversalProvider | undefined = undefined
   private extensionsEnabled: boolean = false
   private enablePromise?: Promise<void>
   private accountUnsubscribe?: () => void
@@ -997,8 +1005,153 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   async sendTransaction(
     _params: AdapterBlueprint.SendTransactionParams
   ): Promise<AdapterBlueprint.SendTransactionResult> {
-    throw new Error('sendTransaction not yet implemented for Polkadot')
-    // TODO: Implement using extrinsic building
+    // Basic balance transfer implementation using polkadot-js
+    const params = _params
+
+    // Resolve sender consistently with other adapters via ChainController
+    const accountData = ChainController.getAccountData(this.namespace as ChainNamespace)
+    const fromAddress = accountData?.address
+
+    if (!fromAddress) {
+      throw new Error('No connected Polkadot account found')
+    }
+
+    if (!params?.to) {
+      throw new Error('Missing recipient address (to)')
+    }
+
+    // Ensure libs and api are ready
+    await this.loadPolkadotLibs()
+
+    const caipNetwork =
+      params.caipNetwork ||
+      ChainController.getActiveCaipNetwork(this.namespace as ChainNamespace) ||
+      this.getCaipNetworks('polkadot' as ChainNamespace)[0]
+
+    if (!caipNetwork) {
+      throw new Error('No Polkadot network available')
+    }
+
+    const api = await this.getApi(caipNetwork)
+
+    // Resolve amount: accept bigint | number; convert to string for api
+    const value = params.value ?? 0
+    const amount = typeof value === 'bigint' ? value.toString() : String(value)
+
+    // Get signer from extension
+    const injector = await this.libs!.web3FromAddress(fromAddress)
+    if (!injector?.signer) {
+      throw new Error('Signer not available for connected account')
+    }
+
+    // Build transfer extrinsic (keep-alive to avoid reaping when supported) with safe access
+    const apiObj = api as unknown
+    if (typeof apiObj !== 'object' || apiObj === null) {
+      throw new Error('Invalid API instance')
+    }
+    const txNs = (apiObj as Record<string, unknown>)['tx']
+    if (!txNs || typeof txNs !== 'object') {
+      throw new Error('API tx namespace is not available')
+    }
+    const balancesNs = (txNs as Record<string, unknown>)['balances']
+    if (!balancesNs || typeof balancesNs !== 'object') {
+      throw new Error('Balances pallet not available on this network')
+    }
+    const rec = balancesNs as Record<string, unknown>
+    const tka = rec['transferKeepAlive']
+    const t = rec['transfer']
+    const isFn = (fn: unknown): fn is (to: string, value: string) => unknown =>
+      typeof fn === 'function'
+    const call = isFn(tka) ? tka : isFn(t) ? t : undefined
+    if (!call) {
+      throw new Error('No transfer method available on balances pallet')
+    }
+    const extrinsicUnknown = call(params.to, amount)
+    type Unsubscribe = () => void
+    type SubmittableResult = {
+      status?: { isInBlock?: boolean; isFinalized?: boolean }
+      txHash?: { toHex?: () => string; toString?: () => string }
+      isError?: boolean
+    }
+    type Submittable = {
+      signAndSend: (
+        sender: string,
+        opts: { signer: unknown },
+        cb: (result: SubmittableResult) => void
+      ) => Promise<Unsubscribe> | Unsubscribe
+    }
+    if (
+      !extrinsicUnknown ||
+      typeof (extrinsicUnknown as { signAndSend?: unknown }).signAndSend !== 'function'
+    ) {
+      throw new Error('Failed to create transfer extrinsic')
+    }
+    const extrinsic = extrinsicUnknown as Submittable
+
+    const hash = await new Promise<string>((resolve, reject) => {
+      try {
+        type Unsubscribe = () => void
+        type SubmittableResult = {
+          status?: { isInBlock?: boolean; isFinalized?: boolean }
+          txHash?: { toHex?: () => string; toString?: () => string }
+          isError?: boolean
+        }
+
+        let unsubscribe: Unsubscribe | undefined
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        const ret = extrinsic.signAndSend(
+          fromAddress,
+          { signer: injector.signer },
+          (result: SubmittableResult) => {
+            try {
+              if (result?.status?.isInBlock || result?.status?.isFinalized) {
+                const txHashLike = (
+                  result as unknown as {
+                    txHash?: { toHex?: () => string; toString?: () => string }
+                  }
+                ).txHash
+                const txHash = txHashLike?.toHex?.() ?? txHashLike?.toString?.() ?? ''
+                try {
+                  unsubscribe?.()
+                } catch {
+                  /* noop */
+                }
+                resolve(String(txHash))
+              } else if ((result as unknown as { isError?: boolean }).isError) {
+                try {
+                  unsubscribe?.()
+                } catch {
+                  /* noop */
+                }
+                reject(new Error('Transaction failed'))
+              }
+            } catch (e) {
+              try {
+                unsubscribe?.()
+              } catch {
+                /* noop */
+              }
+              reject(e as Error)
+            }
+          }
+        )
+
+        // Resolve unsubscribe whether promise or direct
+        const maybePromise = ret as unknown as Promise<Unsubscribe>
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          void maybePromise.then(u => {
+            unsubscribe = u
+          })
+        } else if (typeof ret === 'function') {
+          unsubscribe = ret as unknown as Unsubscribe
+        }
+      } catch (err) {
+        reject(err as Error)
+      }
+    })
+
+    return { hash }
   }
 
   // =============================================================================
@@ -1037,16 +1190,31 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   // =============================================================================
 
   /**
-   * Set universal provider (required by AdapterBlueprint, but unused for injected wallets)
-   * Polkadot uses browser extensions, not WalletConnect
-   *
-   * NOTE: We don't store the universal provider because Polkadot adapter
-   * only uses injected connectors (browser extensions), not WalletConnect
+   * Set universal provider for WalletConnect support
+   * Sets up WalletConnect listeners and adds WalletConnect connector for Polkadot chains
    */
-  async setUniversalProvider(_universalProvider: any): Promise<void> {
-    // Intentionally not storing - prevents WalletConnect connector creation
-    // Prefixed with _ to indicate intentionally unused
-    console.log('[PolkadotAdapter] setUniversalProvider called but ignored (injected only)')
+  public override async setUniversalProvider(universalProvider: UniversalProvider) {
+    this.universalProvider = universalProvider
+
+    const wcConnectorId = CommonConstantsUtil.CONNECTOR_ID.WALLET_CONNECT
+
+    WcHelpersUtil.listenWcProvider({
+      universalProvider,
+      namespace: CommonConstantsUtil.CHAIN.POLKADOT,
+      onConnect: accounts => this.onConnect(accounts, wcConnectorId),
+      onDisconnect: () => this.onDisconnect(wcConnectorId),
+      onAccountsChanged: accounts => super.onAccountsChanged(accounts, wcConnectorId, false)
+    })
+
+    this.addConnector(
+      new PolkadotWalletConnectConnector({
+        provider: universalProvider,
+        chains: this.getCaipNetworks(),
+        getActiveChain: () => ChainController.getCaipNetworkByNamespace(this.namespace)
+      })
+    )
+
+    return Promise.resolve()
   }
 
   async estimateGas(): Promise<AdapterBlueprint.EstimateGasTransactionResult> {
@@ -1066,16 +1234,19 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
   }
 
   /**
-   * Get WalletConnect provider (required by AdapterBlueprint, but unused for injected wallets)
-   * Returns null since Polkadot doesn't use WalletConnect in this adapter
-   *
-   * IMPORTANT: Returning null tells AppKit to NOT create WalletConnect connectors
-   * for Polkadot wallets. They should only use injected connectors.
+   * Get WalletConnect provider instance for Polkadot chains
+   * Returns a PolkadotWalletConnectConnector that wraps the UniversalProvider
    */
-  getWalletConnectProvider(): any {
-    // Always return null - Polkadot adapter only uses injected connectors
-    // This prevents AppKit from trying to create WalletConnect connectors
-    return null
+  public getWalletConnectProvider(
+    params: AdapterBlueprint.GetWalletConnectProviderParams
+  ): AdapterBlueprint.GetWalletConnectProviderResult {
+    const walletConnectProvider = new PolkadotWalletConnectConnector({
+      provider: params.provider as UniversalProvider,
+      chains: params.caipNetworks,
+      getActiveChain: () => ChainController.getCaipNetworkByNamespace(this.namespace)
+    })
+
+    return walletConnectProvider as unknown as any
   }
 
   async getCapabilities(): Promise<unknown> {
@@ -1268,12 +1439,6 @@ export class PolkadotAdapter extends AdapterBlueprint<any> {
           15000
         )
 
-        console.log(
-          '[PolkadotAdapter] API created successfully for:',
-          caipNetwork.id,
-          'using',
-          wsUrl
-        )
         this.apiCache.set(String(caipNetwork.id), api)
         return api
       } catch (error) {

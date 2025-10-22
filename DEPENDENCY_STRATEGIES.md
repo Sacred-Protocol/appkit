@@ -336,3 +336,4 @@ Choose the right strategy for your needs:
 - **Publish to npm?** → Use version numbers ✅
 
 The scripts make it easy to switch between modes, giving you flexibility throughout the development lifecycle.
+

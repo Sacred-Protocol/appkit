@@ -2,7 +2,10 @@ import { BitcoinAdapter } from '@laughingwhales/appkit-adapter-bitcoin'
 import { EthersAdapter } from '@laughingwhales/appkit-adapter-ethers'
 import { PolkadotAdapter } from '@laughingwhales/appkit-adapter-polkadot'
 import { SolanaAdapter } from '@laughingwhales/appkit-adapter-solana'
-import { type ChainNamespace, ConstantsUtil as CommonConstantsUtil } from '@laughingwhales/appkit-common'
+import {
+  type ChainNamespace,
+  ConstantsUtil as CommonConstantsUtil
+} from '@laughingwhales/appkit-common'
 import { type ChainAdapter, ConstantsUtil } from '@laughingwhales/appkit-controllers'
 import {
   type AppKitNetwork,
